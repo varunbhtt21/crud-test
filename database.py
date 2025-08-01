@@ -6,23 +6,30 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 
-# Database URL configuration
-# For development (SQLite)
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+# Load environment variables from .env file
+load_dotenv()
 
-# For production (PostgreSQL)
-# DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
+# Database URL configuration from environment variables
+ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
+DATABASE_URL = (
+    os.getenv("DATABASE_URL_PROD") if ENVIRONMENT == "prod" 
+    else os.getenv("DATABASE_URL_DEV", "sqlite+aiosqlite:///./test.db")
+)
+DB_ECHO = os.getenv("DB_ECHO", "true").lower() == "true"
+
+
 
 # Create async engine
 """
 create_async_engine() creates the database connection engine
-- echo=True: Shows SQL queries in console (useful for debugging)
+- echo: Shows SQL queries in console (controlled by DB_ECHO env var)
 - future=True: Uses SQLAlchemy 2.0 style
 """
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,  # Set to False in production
+    echo=DB_ECHO,
     future=True
 )
 

@@ -1,7 +1,6 @@
 # main.py - Basic FastAPI application setup
-from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db, create_tables
+from fastapi import FastAPI
+from database import create_tables
 import uvicorn
 
 # Create FastAPI application
@@ -19,8 +18,13 @@ async def startup_event():
     Creates all database tables if they don't exist
     """
     print("Creating database tables...")
-    await create_tables()
-    print("Database tables created successfully!")
+    try:
+        await create_tables()
+        print("Database tables created successfully!")
+    except Exception as e:
+        print(f"⚠️  Database connection failed: {e}")
+        print("⚠️  App will start but database features won't work")
+        print("⚠️  Check your AWS RDS security group and network configuration")
 
 # Health check endpoint
 @app.get("/health")
@@ -30,20 +34,22 @@ async def health_check():
 
 # Test database connection endpoint
 @app.get("/test-db")
-async def test_database_connection(db: AsyncSession = Depends(get_db)):
+async def test_database_connection():
     """
     Test endpoint to verify database connection
-    Demonstrates basic dependency injection
+    This version doesn't use dependency injection to avoid startup errors
     """
     try:
-        # Simple query to test connection
-        result = await db.execute("SELECT 1")
-        return {"status": "success", "message": "Database connection successful"}
+        from database import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            await session.execute("SELECT 1")
+            return {"status": "success", "message": "Database connection successful"}
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database connection failed: {str(e)}"
-        )
+        return {
+            "status": "error", 
+            "message": f"Database connection failed: {str(e)}",
+            "suggestion": "Check AWS RDS security group and network configuration"
+        }
 
 if __name__ == "__main__":
     uvicorn.run(
